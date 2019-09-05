@@ -1,4 +1,5 @@
 import boto3
+import botocore
 import click
 
 
@@ -81,16 +82,29 @@ def create_snapshots(project):
     
     for i in instances.all():
         print("Stopping instance {0}".format(i.id))
-        i.stop()
+        try:
+            i.stop()
+        except botocore.exceptions.ClientError as e:
+            #Ignore if try to stop in an invalid state
+            print("Could not stop {0}. ".format(i.id) + str(e))
+            continue;
+        
         # Instance must be stopped before snapshot can be taken
         i.wait_until_stopped() 
+        
         for v in i.volumes.all():
             print("Creating snapshot of {0}".format(v.id))
             v.create_snapshot(Description="Created by snapshotanalyzer 3000")
+            
         # Safe to restart once snapshot process initiated
         print("Starting {0}...".format(i.id))
-        i.start()    
-        i.wait_until_running()
+        try:
+            i.start()  
+            i.wait_until_running()
+        except botocore.exceptions.ClientError as e:
+            # Ignore if try to start in an invalid state
+            print("Could not start {0}.".format(i.id) + str(e))
+            continue;
         
     print("Job's done!")
     return
@@ -125,7 +139,12 @@ def stop_instances(project):
     
     for i in instances:
         print("Stopping instance {0}...".format(i.id))
-        i.stop()
+        try:
+            i.stop()  
+        except botocore.exceptions.ClientError as e:
+            # Ignore if try to start in an invalid state
+            print("Could not stop {0}. ".format(i.id) + str(e))
+            continue;
         
     
 @instances.command('terminate')
@@ -137,8 +156,13 @@ def terminate_instances(project):
 
     for i in instances:
         print("Terminating instance {0}...".format(i.id))
-        i.terminate()
-        
+        try:
+            i.terminate()  
+        except botocore.exceptions.ClientError as e:
+            # Ignore if try to terminate in an invalid state
+            print("Could not terminate {0}. ".format(i.id) + str(e))
+            continue;
+
 @instances.command('start')
 @click.option('--project', default=None, help='Only instances for project')
 def start_instances(project):
@@ -148,7 +172,12 @@ def start_instances(project):
 
     for i in instances:
         print("Starting instance {0}...".format(i.id))
-        i.start()
+        try:
+            i.start()  
+        except botocore.exceptions.ClientError as e:
+            # Ignore if try to start in an invalid state
+            print("Could not start {0}. ".format(i.id) + str(e))
+            continue;
     
 
 if __name__ == '__main__':
