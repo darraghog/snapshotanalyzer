@@ -6,6 +6,30 @@ import click
 session = boto3.Session(profile_name='default')
 ec2 = session.resource('ec2')
 
+def filter_instances(project):
+    instances = []
+
+    if project:
+        filters = [
+            {
+                'Name':'tag:tutorials',
+                'Values':[project]
+                
+            }
+        ] 
+        instances = ec2.instances.filter(Filters=filters) 
+    else:
+        instances = ec2.instances.all()
+    
+    return instances
+
+def has_pending_snapshot(volume):
+    snapshots = list(volume.snapshots.all())
+    return snapshots and snapshots[0].state == 'pending'
+    
+
+    
+
 @click.group()
 def cli():
     """Shotty manages snapshots"""
@@ -58,22 +82,6 @@ def list_volumes(project):
 def instances():
     """Commands for instances"""
     
-def filter_instances(project):
-    instances = []
-
-    if project:
-        filters = [
-            {
-                'Name':'tag:tutorials',
-                'Values':[project]
-                
-            }
-        ] 
-        instances = ec2.instances.filter(Filters=filters) 
-    else:
-        instances = ec2.instances.all()
-    
-    return instances
     
 @instances.command("snapshot")
 @click.option("--project", default=None,
@@ -96,8 +104,11 @@ def create_snapshots(project):
         i.wait_until_stopped() 
         
         for v in i.volumes.all():
-            print("Creating snapshot of {0}".format(v.id))
-            v.create_snapshot(Description="Created by snapshotanalyzer 3000")
+            if has_pending_snapshot(v):
+                print("Skipping snapshoft of {0}, snapshot already in progress.".format(v.id))
+            else:
+                print("Creating snapshot of {0}".format(v.id))
+                v.create_snapshot(Description="Created by snapshotanalyzer 3000")
             
         # Safe to restart once snapshot process initiated
         print("Starting {0}...".format(i.id))
