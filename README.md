@@ -14,4 +14,10 @@ aws configure --profile default
 ```
 
 ## Running
-`pipenv run "python shotty/shotty.py"`
+`pipenv run "python shotty/shotty.py <command> <subcommand> <--project=PROJECT>`
+
+*command* is instances, snapshots or volumes
+*subcommand* is list, start, stop depending on <command>
+*project* is optional
+
+`
